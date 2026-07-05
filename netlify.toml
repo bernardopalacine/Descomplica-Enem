@@ -1,0 +1,28 @@
+[build]
+  publish   = "public"
+  functions = "netlify/functions"
+  command   = "npm install"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from   = "/webhook/cakto"
+  to     = "/.netlify/functions/webhook"
+  status = 200
+
+[[redirects]]
+  from   = "/api/login"
+  to     = "/.netlify/functions/login"
+  status = 200
+
+[[redirects]]
+  from   = "/api/recuperar"
+  to     = "/.netlify/functions/recuperar"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"

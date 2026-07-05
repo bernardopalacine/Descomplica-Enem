@@ -1,4 +1,3 @@
-// netlify/functions/webhook.js
 const { createClient } = require('@supabase/supabase-js');
 const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
@@ -7,9 +6,9 @@ const crypto           = require('crypto');
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const SITE    = process.env.URL            || 'https://thunderous-panda-b1b008.netlify.app';
-const FROM    = process.env.EMAIL_FROM     || 'Descomplica ENEM <noreply@resend.dev>';
-const SUPORTE = process.env.EMAIL_SUPORTE  || 'suporte@descomplica-enem.com';
+const SITE    = process.env.URL            || 'https://descomplicaenem.site';
+const FROM    = process.env.EMAIL_FROM     || 'Descomplica ENEM <noreply@descomplicaenem.site>';
+const SUPORTE = process.env.EMAIL_SUPORTE  || 'suporte@descomplicaenem.site';
 
 const ADJ = ['azul','verde','rapido','forte','firme','claro','novo','bom','alto','belo'];
 const SUB = ['gato','rio','sol','mar','vento','fogo','pico','base','foco','meta'];
@@ -61,131 +60,76 @@ function emailHtml(nome, email, pw) {
 exports.handler = async (event) => {
   const method = event.httpMethod;
 
-  // ── GET: ping de verificação da Cakto ─────────────────────
-  if (method === 'GET') {
-    console.log('Ping de verificação recebido');
-    return { statusCode: 200, body: JSON.stringify({ ok: true, status: 'webhook ativo' }) };
-  }
-
-  // ── OPTIONS: CORS preflight ────────────────────────────────
-  if (method === 'OPTIONS') {
-    return { statusCode: 200, body: '' };
-  }
-
-  // ── POST: compra real ──────────────────────────────────────
-  if (method !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+  if (method === 'GET')     return { statusCode: 200, body: JSON.stringify({ ok: true, status: 'webhook ativo' }) };
+  if (method === 'OPTIONS') return { statusCode: 200, body: '' };
+  if (method !== 'POST')    return { statusCode: 405, body: 'Method Not Allowed' };
 
   const raw = event.body || '';
-  console.log('Webhook recebido. Headers:', JSON.stringify(event.headers));
-  console.log('Body raw:', raw.substring(0, 500));
-
-  // Parse do payload
   let p;
-  try {
-    p = JSON.parse(raw);
-  } catch(e) {
-    console.error('JSON inválido:', e.message);
-    return { statusCode: 400, body: 'Invalid JSON' };
-  }
+  try { p = JSON.parse(raw); }
+  catch { return { statusCode: 400, body: 'Invalid JSON' }; }
 
-  console.log('Payload parsed:', JSON.stringify(p));
+  console.log('Evento:', p.event, '| Status:', p.data?.[0]?.status);
 
-  // Verifica se é compra aprovada — aceita qualquer formato da Cakto
-  const ev = (p.event || p.type || p.status || '').toString().toLowerCase().replace(/[._\-\s]/g,'');
-  const st = (p.data?.status || p.status || p.data?.payment_status || '').toString().toLowerCase();
-
-  console.log(`Evento: "${ev}" | Status: "${st}"`);
+  // Verifica se é compra aprovada
+  const ev = (p.event || '').toLowerCase().replace(/[._\-\s]/g, '');
+  const st = (p.data?.[0]?.status || p.status || '').toLowerCase();
 
   const aprovado =
-    ['approved','paid','complete','completed','active','success'].some(s => st.includes(s)) ||
-    ['purchaseapproved','orderapproved','paymentapproved','saleapproved',
-     'purchase','sale','order','payment'].some(e => ev.includes(e)) ||
-    st === '' && ev !== ''; // alguns webhooks não têm status explícito
+    ['paid','approved','complete','completed'].some(s => st.includes(s)) ||
+    ['purchaseapproved','purchase_approved'].includes(ev);
 
   if (!aprovado) {
-    console.log(`Evento ignorado: ev="${ev}" st="${st}"`);
-    return { statusCode: 200, body: JSON.stringify({ ok: true, msg: 'evento ignorado', ev, st }) };
+    console.log(`Ignorado: ev="${ev}" st="${st}"`);
+    return { statusCode: 200, body: JSON.stringify({ ok: true, msg: 'ignorado', ev, st }) };
   }
 
-  // Extrai email e nome — tenta todos os campos possíveis da Cakto
-  const buyer = p.data?.buyer      ||
-                p.data?.customer   ||
-                p.data?.subscriber ||
-                p.buyer            ||
-                p.customer         ||
-                p.subscriber       || {};
+  // Extrai dados — Cakto envia data como array
+  const item     = Array.isArray(p.data) ? p.data[0] : p.data || {};
+  const customer = item.customer || {};
 
-  const email = (
-    buyer.email        ||
-    p.data?.email      ||
-    p.data?.buyer_email||
-    p.email            ||
-    p.customer_email   || ''
-  ).trim().toLowerCase();
-
-  const nome = (
-    buyer.name         ||
-    buyer.nome         ||
-    buyer.full_name    ||
-    p.data?.name       ||
-    p.data?.buyer_name ||
-    p.name             || ''
-  ).trim();
+  const email = (customer.email || item.email || '').trim().toLowerCase();
+  const nome  = (customer.name  || customer.nome || item.name || '').trim();
 
   console.log(`Comprador: email="${email}" nome="${nome}"`);
 
   if (!email || !email.includes('@')) {
-    console.error('Email não encontrado no payload:', JSON.stringify(p));
-    return { statusCode: 400, body: 'Email não encontrado no payload' };
+    console.error('Email não encontrado');
+    return { statusCode: 400, body: 'Email não encontrado' };
   }
 
-  // Gera senha legível
+  // Gera senha
   const pw   = gerarSenha();
   const hash = await bcrypt.hash(pw, 10);
 
-  console.log(`Senha gerada para ${email}: ${pw}`);
-
   // Salva no Supabase
   const { error: dbErr } = await db.from('usuarios').upsert({
-    email,
-    nome,
-    senha_hash: hash,
-    criado_em:  new Date().toISOString(),
-    ativo:      true,
+    email, nome, senha_hash: hash,
+    criado_em: new Date().toISOString(), ativo: true,
     compra: {
-      id:      p.data?.id || p.id || p.order_id || '',
-      produto: p.data?.product?.name || p.product_name || 'Descomplica ENEM',
-      valor:   p.data?.amount || p.amount || p.price || '',
-      evento:  ev,
-      status:  st,
+      id:      item.id || '',
+      produto: item.product?.name || item.offer?.name || 'Descomplica ENEM',
+      valor:   item.amount || item.baseAmount || '',
+      metodo:  item.paymentMethodName || '',
     },
   }, { onConflict: 'email' });
 
-  if (dbErr) {
-    console.error('Supabase erro:', JSON.stringify(dbErr));
-    // Não retorna erro — continua para enviar o email
-  } else {
-    console.log(`✓ Usuário salvo no banco: ${email}`);
-  }
+  if (dbErr) console.error('Supabase erro:', dbErr.message);
+  else console.log(`✓ Usuário salvo: ${email}`);
 
-  // Envia email via Resend
-  const { data: mailData, error: mailErr } = await resend.emails.send({
-    from:    FROM,
-    to:      email,
+  // Envia email
+  const { error: mailErr } = await resend.emails.send({
+    from: FROM, to: email,
     subject: '🎓 Seu acesso ao Descomplica ENEM está pronto',
-    html:    emailHtml(nome, email, pw),
+    html: emailHtml(nome, email, pw),
   });
 
   if (mailErr) {
-    console.error('Resend erro:', JSON.stringify(mailErr));
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ ok: false, error: 'Falha no envio do email', detail: mailErr }),
-    };
+    console.error('Email erro:', mailErr);
+    return { statusCode: 500, body: JSON.stringify({ ok: false, error: mailErr.message }) };
   }
 
-  console.log(`✓ Email enviado para ${email}. Resend ID: ${mailData?.id}`);
+  console.log(`✓ Email enviado para ${email}`);
   return { statusCode: 200, body: JSON.stringify({ ok: true, email }) };
 };
+

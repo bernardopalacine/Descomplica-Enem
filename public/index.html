@@ -547,9 +547,8 @@ function showQR(){
 function qReset(){qi=0;ans=[];sel=null;document.getElementById('qPanel').style.display='block';document.getElementById('qResult').classList.remove('show');qRender();}
 qRender();
 
-function comprar(){
-  // Substitua pela URL da sua plataforma (Hotmart, Kiwify, Stripe etc.)
-  alert('Configure aqui o link de pagamento.\nApós o pagamento, o aluno acessa com o código em acesso.html');
+function comprar() {
+  window.open("https://pay.cakto.com.br/zbxfpix_946324", "_blank");
 }
 
 const ob=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');ob.unobserve(e.target);}});},{threshold:0.1});

@@ -1,17 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<script>
-(function(){
-  var KEY = 'de_access_v1';
-  var ok = false;
-  try { ok = localStorage.getItem(KEY) === '1'; } catch(e){}
-  if (!ok) {
-    try { localStorage.setItem('de_redirect', location.href); } catch(e){}
-    location.replace('acesso.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aulas — Descomplica Enem | versão master com painel de estudo</title>

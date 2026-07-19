@@ -161,12 +161,22 @@ async function checarSessao() {
   } catch (e) { return { ok: false }; }
 }
 
-// Pega destino do parâmetro ?next=
+// Pega destino do parâmetro ?next= — só aceita caminhos internos do
+// próprio site (ex.: /aulas-completas.html). Sem essa checagem, alguém
+// poderia montar um link tipo acesso.html?next=https://site-falso.com
+// e, depois do login de verdade, a pessoa seria mandada pra fora do
+// site (golpe clássico de "open redirect" usado em phishing).
 function getNext() {
   try {
     var p = new URLSearchParams(location.search);
     var n = p.get('next');
-    if (n) return decodeURIComponent(n);
+    if (!n) return null;
+    n = decodeURIComponent(n);
+    // Bloqueia "//evil.com" (URL sem esquema) e "/\evil.com" (navegadores
+    // tratam "\" como "/" na hora de resolver a URL, então isso também
+    // vira um redirecionamento pra fora do site se não for barrado aqui).
+    if (!/^\/(?![\/\\])/.test(n)) return null;
+    return n;
   } catch(e) {}
   return null;
 }

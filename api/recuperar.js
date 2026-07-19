@@ -9,8 +9,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SITE    = process.env.SITE_URL      || 'https://descomplicaenem.site';
 const FROM    = process.env.EMAIL_FROM    || 'Descomplica ENEM <noreply@resend.dev>';
-const SUPORTE = process.env.EMAIL_SUPORTE || 'suporte@descomplica-enem.com';
-const SITE_ORIGIN = process.env.SITE_URL || 'https://descomplicaenem.site';
+const SUPORTE = process.env.EMAIL_SUPORTE || 'suporte@descomplicaenem.site';
+const SITE_ORIGIN = SITE;
 const MSG = 'Se esse email tem uma compra registrada, você receberá a nova senha em instantes. Verifique também o spam.';
 const COOLDOWN_MINUTOS = 2;
 
@@ -55,9 +55,11 @@ module.exports = async (req, res) => {
 
   const pw   = senha();
   const hash = await bcrypt.hash(pw, 10);
-  await db.from('usuarios').update({ senha_hash: hash, senha_resetada_em: new Date().toISOString() }).eq('email', email);
 
-  await resend.emails.send({
+  // Manda o email ANTES de salvar a senha nova no banco. Se o envio falhar,
+  // a senha antiga continua valendo (em vez de trocar a senha e o aluno
+  // nunca receber a nova, ficando travado sem conseguir entrar).
+  const { error: mailErr } = await resend.emails.send({
     from: FROM, to: email,
     subject: '🔑 Nova senha — Descomplica ENEM',
     html: `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
@@ -93,5 +95,13 @@ module.exports = async (req, res) => {
 </table></td></tr></table></body></html>`,
   });
 
+  if (mailErr) {
+    console.error('Recuperar: falha ao enviar email, senha NÃO foi trocada:', mailErr.message || mailErr);
+    // Mesma mensagem genérica de sempre — não revela ao usuário que houve
+    // uma falha técnica (evita dar pistas sobre emails válidos/inválidos).
+    return res.status(200).json({ ok: true, msg: MSG });
+  }
+
+  await db.from('usuarios').update({ senha_hash: hash, senha_resetada_em: new Date().toISOString() }).eq('email', email);
   return res.status(200).json({ ok: true, msg: MSG });
 };

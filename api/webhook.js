@@ -127,11 +127,41 @@ module.exports = async (req, res) => {
     return res.status(400).send('Email não encontrado');
   }
 
+  // Evita reprocessar a mesma compra — a Cakto pode reenviar o webhook em
+  // caso de timeout/erro de rede. Sem essa checagem, um reenvio gera uma
+  // senha NOVA e manda outro email, invalidando a senha que já tinha sido
+  // enviada no primeiro envio (o aluno recebe dois emails com senhas
+  // diferentes e só a mais recente funciona).
+  const idCompra = item.id || '';
+  if (idCompra) {
+    const { data: existente } = await db.from('usuarios').select('compra').eq('email', email).single();
+    if (existente && existente.compra && existente.compra.id === idCompra) {
+      console.log(`Compra ${idCompra} já processada para ${email} — ignorando reenvio do webhook.`);
+      return res.status(200).json({ ok: true, msg: 'já processado' });
+    }
+  }
+
   // Gera senha
   const pw   = gerarSenha();
   const hash = await bcrypt.hash(pw, 10);
 
-  // Salva no Supabase
+  // Manda o email ANTES de gravar no banco. Se o envio falhar, a compra
+  // NÃO fica marcada como processada — assim, se a Cakto reenviar o
+  // webhook (o motivo mais comum de reenvio é justamente uma falha
+  // anterior), o retry tenta de novo em vez de ser ignorado pela
+  // checagem de idempotência acima.
+  const { error: mailErr } = await resend.emails.send({
+    from: FROM, to: email,
+    subject: '🎓 Seu acesso ao Descomplica ENEM está pronto',
+    html: emailHtml(nome, email, pw),
+  });
+
+  if (mailErr) {
+    console.error('Email erro:', mailErr);
+    return res.status(500).json({ ok: false, error: mailErr.message });
+  }
+
+  // Só grava no Supabase depois de confirmar que o email saiu.
   const { error: dbErr } = await db.from('usuarios').upsert({
     email, nome, senha_hash: hash,
     criado_em: new Date().toISOString(), ativo: true,
@@ -143,20 +173,11 @@ module.exports = async (req, res) => {
     },
   }, { onConflict: 'email' });
 
-  if (dbErr) console.error('Supabase erro:', dbErr.message);
-  else console.log(`✓ Usuário salvo: ${email}`);
-
-  // Envia email
-  const { error: mailErr } = await resend.emails.send({
-    from: FROM, to: email,
-    subject: '🎓 Seu acesso ao Descomplica ENEM está pronto',
-    html: emailHtml(nome, email, pw),
-  });
-
-  if (mailErr) {
-    console.error('Email erro:', mailErr);
-    return res.status(500).json({ ok: false, error: mailErr.message });
+  if (dbErr) {
+    console.error('Supabase erro:', dbErr.message);
+    return res.status(500).json({ ok: false, error: dbErr.message });
   }
+  console.log(`✓ Usuário salvo: ${email}`);
 
   console.log(`✓ Email enviado para ${email}`);
   return res.status(200).json({ ok: true, email });

@@ -92,21 +92,37 @@ PRONTO! Zero trabalho manual a partir daqui.
 
 ARQUIVOS DO PROJETO:
   public/
-    index.html            → landing page
-    acesso.html            → login email + senha
-    aulas-completas.html  → aulas (bloqueada sem login)
-    arena-enem.html       → Arena ENEM (bloqueada sem login)
-    *.pdf                 → ebook
+    index.html            → landing page (pública)
+    acesso.html           → login email + senha (pública)
+    *.pdf                 → ebook (pública — ver nota abaixo)
+  content/
+    aulas-completas.html  → aulas — NÃO fica em public/, só é entregue
+                             pelo api/aulas.js depois de conferir login
+    arena-enem.html       → Arena ENEM — mesma proteção, via api/arena.js
   api/
     webhook.js            → recebe Cakto, cria usuário, envia email
     login.js              → valida email + senha, cria a sessão
     recuperar.js          → gera nova senha e envia por email
     verificar-sessao.js   → confere se a sessão é válida (chamado pelo site)
     logout.js             → encerra a sessão
+    aulas.js              → serve content/aulas-completas.html só se logado
+    arena.js               → serve content/arena-enem.html só se logado
     _lib/session.js        → assina/confere o cookie de sessão
-  vercel.json             → configuração da Vercel (rotas e headers)
+  vercel.json             → configuração da Vercel (rotas, headers, e quais
+                             arquivos de content/ cada function pode ler)
   package.json            → dependências
   supabase.sql            → SQL para criar/atualizar a tabela
+
+PROTEÇÃO DE CONTEÚDO (Etapa 2): antes, aulas-completas.html e
+arena-enem.html ficavam em public/ — mesmo com a "tela de login" na
+frente, dava pra ver o conteúdo inteiro com "Ver código-fonte" ou
+baixando a página direto, sem nunca ter logado. Agora esses arquivos
+não existem mais como página pública: api/aulas.js e api/arena.js
+conferem a sessão (o mesmo cookie assinado do login) ANTES de mandar
+o HTML de volta. Sem sessão válida, a resposta é um redirecionamento
+pra acesso.html — o conteúdo em si nunca chega no navegador de quem
+não está logado. O ebook em PDF continua público (link direto) por
+enquanto — não estava no escopo desta etapa.
 
 ────────────────────────────────────────────
 MIGRAÇÃO DE HOSPEDAGEM (Netlify → Vercel)

@@ -1,8 +1,14 @@
 {
   "framework": null,
   "outputDirectory": "public",
+  "functions": {
+    "api/aulas.js": { "includeFiles": "content/aulas-completas.html" },
+    "api/arena.js": { "includeFiles": "content/arena-enem.html" }
+  },
   "rewrites": [
-    { "source": "/webhook/cakto", "destination": "/api/webhook" }
+    { "source": "/webhook/cakto", "destination": "/api/webhook" },
+    { "source": "/aulas-completas.html", "destination": "/api/aulas" },
+    { "source": "/arena-enem.html", "destination": "/api/arena" }
   ],
   "headers": [
     {

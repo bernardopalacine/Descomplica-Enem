@@ -94,11 +94,12 @@ ARQUIVOS DO PROJETO:
   public/
     index.html            → landing page (pública)
     acesso.html           → login email + senha (pública)
-    *.pdf                 → ebook (pública — ver nota abaixo)
   content/
     aulas-completas.html  → aulas — NÃO fica em public/, só é entregue
                              pelo api/aulas.js depois de conferir login
     arena-enem.html       → Arena ENEM — mesma proteção, via api/arena.js
+    Descomplica_Enem_Guia_Definitivo.pdf → ebook, mesma proteção, via
+                             api/ebook.js
   api/
     webhook.js            → recebe Cakto, cria usuário, envia email
     login.js              → valida email + senha, cria a sessão
@@ -107,22 +108,22 @@ ARQUIVOS DO PROJETO:
     logout.js             → encerra a sessão
     aulas.js              → serve content/aulas-completas.html só se logado
     arena.js               → serve content/arena-enem.html só se logado
+    ebook.js               → serve o PDF só se logado
     _lib/session.js        → assina/confere o cookie de sessão
   vercel.json             → configuração da Vercel (rotas, headers, e quais
                              arquivos de content/ cada function pode ler)
   package.json            → dependências
   supabase.sql            → SQL para criar/atualizar a tabela
 
-PROTEÇÃO DE CONTEÚDO (Etapa 2): antes, aulas-completas.html e
-arena-enem.html ficavam em public/ — mesmo com a "tela de login" na
-frente, dava pra ver o conteúdo inteiro com "Ver código-fonte" ou
-baixando a página direto, sem nunca ter logado. Agora esses arquivos
-não existem mais como página pública: api/aulas.js e api/arena.js
-conferem a sessão (o mesmo cookie assinado do login) ANTES de mandar
-o HTML de volta. Sem sessão válida, a resposta é um redirecionamento
-pra acesso.html — o conteúdo em si nunca chega no navegador de quem
-não está logado. O ebook em PDF continua público (link direto) por
-enquanto — não estava no escopo desta etapa.
+PROTEÇÃO DE CONTEÚDO (Etapas 2 e 3): antes, aulas-completas.html,
+arena-enem.html e o PDF do ebook ficavam em public/ — mesmo com a
+"tela de login" na frente, dava pra ver/baixar o conteúdo inteiro com
+"Ver código-fonte" ou acessando a URL direto, sem nunca ter logado.
+Agora nenhum desses três arquivos existe mais como página/arquivo
+público: api/aulas.js, api/arena.js e api/ebook.js conferem a sessão
+(o mesmo cookie assinado do login) ANTES de mandar qualquer conteúdo
+de volta. Sem sessão válida, a resposta é um redirecionamento pra
+acesso.html — o conteúdo em si nunca chega em quem não está logado.
 
 ────────────────────────────────────────────
 MIGRAÇÃO DE HOSPEDAGEM (Netlify → Vercel)

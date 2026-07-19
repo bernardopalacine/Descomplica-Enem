@@ -3,12 +3,14 @@
   "outputDirectory": "public",
   "functions": {
     "api/aulas.js": { "includeFiles": "content/aulas-completas.html" },
-    "api/arena.js": { "includeFiles": "content/arena-enem.html" }
+    "api/arena.js": { "includeFiles": "content/arena-enem.html" },
+    "api/ebook.js": { "includeFiles": "content/Descomplica_Enem_Guia_Definitivo.pdf" }
   },
   "rewrites": [
     { "source": "/webhook/cakto", "destination": "/api/webhook" },
     { "source": "/aulas-completas.html", "destination": "/api/aulas" },
-    { "source": "/arena-enem.html", "destination": "/api/arena" }
+    { "source": "/arena-enem.html", "destination": "/api/arena" },
+    { "source": "/Descomplica_Enem_Guia_Definitivo.pdf", "destination": "/api/ebook" }
   ],
   "headers": [
     {

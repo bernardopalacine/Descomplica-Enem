@@ -29,7 +29,7 @@ create index if not exists idx_usuarios_email on usuarios(email);
 -- Row Level Security (RLS) — bloqueia acesso direto pelo browser
 alter table usuarios enable row level security;
 
--- Apenas a service_role (usada nas Netlify Functions) pode ler/escrever
+-- Apenas a service_role (usada nas functions da Vercel) pode ler/escrever
 create policy "service only" on usuarios
   using (false)
   with check (false);

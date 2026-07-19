@@ -1,12 +1,12 @@
-// netlify/functions/_lib/session.js
+// api/_lib/session.js
 // Sessão assinada pelo servidor: o cliente não consegue mais forjar
 // "estou logado" escrevendo um cookie na mão pelo console do navegador.
 const crypto = require('crypto');
 
-const COOKIE_NAME   = 'de_sess';
-const MAX_AGE_MS    = 30 * 24 * 60 * 60 * 1000; // 30 dias
+const COOKIE_NAME = 'de_sess';
+const MAX_AGE_MS  = 30 * 24 * 60 * 60 * 1000; // 30 dias
 
-// Prefira configurar SESSION_SECRET nas variáveis de ambiente do Netlify.
+// Prefira configurar SESSION_SECRET nas variáveis de ambiente da Vercel.
 // Sem isso, cai num segredo derivado da service key do Supabase — funciona
 // sem passo extra de configuração, mas SESSION_SECRET dedicado é mais seguro
 // (evita reaproveitar a mesma chave para dois propósitos diferentes).
@@ -37,8 +37,9 @@ function verify(token) {
   return dados;
 }
 
-function readCookie(event) {
-  const raw = (event.headers && (event.headers.cookie || event.headers.Cookie)) || '';
+// Vercel expõe req.headers.cookie como string, igual ao Node puro.
+function readCookie(req) {
+  const raw = (req.headers && (req.headers.cookie || req.headers.Cookie)) || '';
   const m = raw.match(/(?:^|;\s*)de_sess=([^;]+)/);
   return m ? decodeURIComponent(m[1]) : null;
 }

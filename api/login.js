@@ -1,27 +1,35 @@
-// netlify/functions/login.js
+// api/login.js
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt           = require('bcryptjs');
 const session          = require('./_lib/session');
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const SITE_ORIGIN = process.env.URL || 'https://descomplicaenem.site';
-const H  = { 'Content-Type':'application/json','Access-Control-Allow-Origin':SITE_ORIGIN,'Access-Control-Allow-Methods':'POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Credentials':'true' };
+const SITE_ORIGIN = process.env.SITE_URL || 'https://descomplicaenem.site';
 
 const MAX_TENTATIVAS   = 6;
 const BLOQUEIO_MINUTOS = 15;
 
-exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: H, body: '' };
-  if (event.httpMethod !== 'POST')    return { statusCode: 405, headers: H, body: '{}' };
+function cors(res) {
+  res.setHeader('Access-Control-Allow-Origin', SITE_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+}
 
-  let b;
-  try { b = JSON.parse(event.body || '{}'); } catch { return { statusCode: 400, headers: H, body: '{}' }; }
+module.exports = async (req, res) => {
+  cors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST')    return res.status(405).json({});
+
+  let b = req.body;
+  if (typeof b === 'string') { try { b = JSON.parse(b || '{}'); } catch { return res.status(400).json({}); } }
+  b = b || {};
 
   const email = (b.email || '').trim().toLowerCase();
   const senha = (b.senha || '').trim();
 
   if (!email || !senha)
-    return { statusCode: 200, headers: H, body: JSON.stringify({ ok: false, msg: 'Preencha email e senha.' }) };
+    return res.status(200).json({ ok: false, msg: 'Preencha email e senha.' });
 
   // Tenta buscar já com as colunas de controle de tentativas. Se essas
   // colunas ainda não existirem no banco (migração não rodada), cai para
@@ -39,13 +47,13 @@ exports.handler = async (event) => {
   }
 
   if (!u)
-    return { statusCode: 200, headers: H, body: JSON.stringify({ ok: false, msg: 'Email não encontrado. Use o email com que você realizou a compra.' }) };
+    return res.status(200).json({ ok: false, msg: 'Email não encontrado. Use o email com que você realizou a compra.' });
 
   if (!u.ativo)
-    return { statusCode: 200, headers: H, body: JSON.stringify({ ok: false, msg: 'Acesso suspenso. Entre em contato com o suporte.' }) };
+    return res.status(200).json({ ok: false, msg: 'Acesso suspenso. Entre em contato com o suporte.' });
 
   if (temColunasLimite && u.bloqueado_ate && new Date(u.bloqueado_ate) > new Date())
-    return { statusCode: 200, headers: H, body: JSON.stringify({ ok: false, msg: 'Muitas tentativas incorretas. Tente novamente em alguns minutos ou clique em "Esqueci minha senha".' }) };
+    return res.status(200).json({ ok: false, msg: 'Muitas tentativas incorretas. Tente novamente em alguns minutos ou clique em "Esqueci minha senha".' });
 
   const ok = await bcrypt.compare(senha, u.senha_hash);
 
@@ -57,7 +65,7 @@ exports.handler = async (event) => {
         : { tentativas_login: tentativas };
       await db.from('usuarios').update(update).eq('email', email);
     }
-    return { statusCode: 200, headers: H, body: JSON.stringify({ ok: false, msg: 'Senha incorreta. Clique em "Esqueci minha senha" para recuperar.' }) };
+    return res.status(200).json({ ok: false, msg: 'Senha incorreta. Clique em "Esqueci minha senha" para recuperar.' });
   }
 
   const sucesso = { ultimo_acesso: new Date().toISOString() };
@@ -65,10 +73,6 @@ exports.handler = async (event) => {
   await db.from('usuarios').update(sucesso).eq('email', email);
 
   // Sessão assinada pelo servidor — o navegador não consegue forjar isso.
-  const cookieHeader = session.setCookieHeader({ email, nome: u.nome });
-  return {
-    statusCode: 200,
-    headers: { ...H, 'Set-Cookie': cookieHeader },
-    body: JSON.stringify({ ok: true, nome: u.nome }),
-  };
+  res.setHeader('Set-Cookie', session.setCookieHeader({ email, nome: u.nome }));
+  return res.status(200).json({ ok: true, nome: u.nome });
 };

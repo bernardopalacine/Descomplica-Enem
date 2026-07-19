@@ -7,7 +7,7 @@ FLUXO COMPLETO:
        ↓
   Cakto dispara webhook
        ↓
-  Netlify cria login (email + senha)
+  Vercel cria login (email + senha)
        ↓
   Resend envia email bonito com as credenciais
        ↓
@@ -37,40 +37,54 @@ PASSO 2 — RESEND (email gratuito, 3000/mês)
 4. Em EMAIL_FROM use: Descomplica ENEM <noreply@seudominio.com>
 
 ────────────────────────────────────────────
-PASSO 3 — NETLIFY (hospedagem gratuita)
+PASSO 3 — VERCEL (hospedagem gratuita)
 ────────────────────────────────────────────
-1. Acesse: netlify.com → Add new site → Deploy manually
-2. Arraste a pasta "descomplica-sistema" inteira
-3. Vá em Site settings > Environment variables → adicione:
+1. Acesse: vercel.com → Add New → Project
+2. Importe o repositório do GitHub (bernardopalacine/Descomplica-Enem)
+   (a Vercel detecta sozinha o vercel.json e a pasta api/ — não precisa
+   configurar build command nem output directory manualmente)
+3. Antes de clicar em Deploy (ou depois, em Project Settings >
+   Environment Variables), adicione:
 
    SUPABASE_URL          = https://xxxx.supabase.co
    SUPABASE_SERVICE_KEY  = eyJ... (service_role)
    RESEND_API_KEY        = re_...
    EMAIL_FROM            = Descomplica ENEM <noreply@seudominio.com>
    EMAIL_SUPORTE         = seu@email.com
+   SITE_URL              = https://SEU-PROJETO.vercel.app (ou seu domínio)
    CAKTO_SECRET          = (veja passo 4 — IMPORTANTE, sem isso o webhook
                              fica desligado por segurança)
+   SESSION_SECRET         = (opcional, mas recomendado — veja abaixo)
 
-4. Anote a URL do seu site: https://SEU-SITE.netlify.app
+4. Depois do primeiro deploy, anote a URL do seu site:
+   https://SEU-PROJETO.vercel.app
+
+SESSION_SECRET (opcional): usado para assinar o cookie de login.
+Se você não configurar, o sistema gera um valor a partir da sua
+SUPABASE_SERVICE_KEY automaticamente — funciona sem esse passo, mas
+o ideal é gerar uma string aleatória longa só para isso (qualquer
+gerenciador de senhas serve) e colar aqui, separado da chave do banco.
 
 ────────────────────────────────────────────
 PASSO 4 — CAKTO (webhook automático)
 ────────────────────────────────────────────
 Sem um secret, qualquer pessoa que descobrisse a URL do webhook
 poderia forjar uma "compra aprovada" para qualquer email e ganhar
-acesso de graça. Por isso o webhook.js EXIGE um secret — sem ele,
+acesso de graça. Por isso o api/webhook.js EXIGE um secret — sem ele,
 ele recusa a requisição (erro 500) em vez de aceitar tudo.
 
 1. Invente um secret forte (ex.: gere uma senha aleatória longa em
    um gerenciador de senhas — não precisa ser o que a Cakto sugerir).
-2. Cole esse secret em NETLIFY > Environment variables > CAKTO_SECRET
+2. Cole esse secret em VERCEL > Project Settings > Environment
+   Variables > CAKTO_SECRET
 3. Painel Cakto → Integrações → Webhooks → Adicionar webhook:
-   URL:    https://SEU-SITE.netlify.app/webhook/cakto?secret=SEU_SECRET_AQUI
+   URL:    https://SEU-PROJETO.vercel.app/webhook/cakto?secret=SEU_SECRET_AQUI
    Evento: Compra Aprovada
    (troque SEU_SECRET_AQUI pelo mesmo valor que você colocou em
    CAKTO_SECRET — é essa URL exata, com o "?secret=...", que garante
    que só a Cakto consegue liberar acesso)
-4. Faça um re-deploy no Netlify para atualizar as variáveis
+4. Faça um novo deploy na Vercel para atualizar as variáveis
+   (Deployments > ⋯ > Redeploy, ou dê um novo git push)
 
 ────────────────────────────────────────────
 PRONTO! Zero trabalho manual a partir daqui.
@@ -79,14 +93,27 @@ PRONTO! Zero trabalho manual a partir daqui.
 ARQUIVOS DO PROJETO:
   public/
     index.html            → landing page
-    acesso.html           → login email + senha
+    acesso.html            → login email + senha
     aulas-completas.html  → aulas (bloqueada sem login)
     arena-enem.html       → Arena ENEM (bloqueada sem login)
     *.pdf                 → ebook
-  netlify/functions/
+  api/
     webhook.js            → recebe Cakto, cria usuário, envia email
-    login.js              → valida email + senha
+    login.js              → valida email + senha, cria a sessão
     recuperar.js          → gera nova senha e envia por email
-  netlify.toml            → configuração do Netlify
+    verificar-sessao.js   → confere se a sessão é válida (chamado pelo site)
+    logout.js             → encerra a sessão
+    _lib/session.js        → assina/confere o cookie de sessão
+  vercel.json             → configuração da Vercel (rotas e headers)
   package.json            → dependências
-  supabase.sql            → SQL para criar a tabela
+  supabase.sql            → SQL para criar/atualizar a tabela
+
+────────────────────────────────────────────
+MIGRAÇÃO DE HOSPEDAGEM (Netlify → Vercel)
+────────────────────────────────────────────
+Este projeto já funcionou hospedado no Netlify (pasta netlify/ com as
+mesmas functions). Migramos para a Vercel porque o plano gratuito do
+Netlify tem só 300 minutos de build por mês (a Vercel tem 6000). A
+lógica de negócio é idêntica nos dois — só o formato de entrada/saída
+das functions muda entre as duas plataformas. O histórico do Netlify
+continua disponível no histórico do Git, caso precise voltar algum dia.

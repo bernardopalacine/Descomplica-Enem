@@ -1,4 +1,4 @@
-// netlify/functions/recuperar.js
+// api/recuperar.js
 const { createClient } = require('@supabase/supabase-js');
 const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
@@ -7,11 +7,10 @@ const crypto           = require('crypto');
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const SITE    = process.env.URL           || 'https://descomplica-enem.netlify.app';
+const SITE    = process.env.SITE_URL      || 'https://descomplicaenem.site';
 const FROM    = process.env.EMAIL_FROM    || 'Descomplica ENEM <noreply@resend.dev>';
 const SUPORTE = process.env.EMAIL_SUPORTE || 'suporte@descomplica-enem.com';
-const SITE_ORIGIN = process.env.URL || 'https://descomplicaenem.site';
-const H = { 'Content-Type':'application/json','Access-Control-Allow-Origin':SITE_ORIGIN,'Access-Control-Allow-Methods':'POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type' };
+const SITE_ORIGIN = process.env.SITE_URL || 'https://descomplicaenem.site';
 const MSG = 'Se esse email tem uma compra registrada, você receberá a nova senha em instantes. Verifique também o spam.';
 const COOLDOWN_MINUTOS = 2;
 
@@ -22,27 +21,36 @@ function senha() {
   return `${r(ADJ)}-${r(SUB)}-${crypto.randomInt(1000,9999)}`;
 }
 
-exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: H, body: '' };
-  if (event.httpMethod !== 'POST')    return { statusCode: 405, headers: H, body: '{}' };
+function cors(res) {
+  res.setHeader('Access-Control-Allow-Origin', SITE_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+}
 
-  let b;
-  try { b = JSON.parse(event.body || '{}'); } catch { return { statusCode: 400, headers: H, body: '{}' }; }
+module.exports = async (req, res) => {
+  cors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST')    return res.status(405).json({});
+
+  let b = req.body;
+  if (typeof b === 'string') { try { b = JSON.parse(b || '{}'); } catch { return res.status(400).json({}); } }
+  b = b || {};
 
   const email = (b.email || '').trim().toLowerCase();
   if (!email || !email.includes('@'))
-    return { statusCode: 200, headers: H, body: JSON.stringify({ ok: false, msg: 'Digite um email válido.' }) };
+    return res.status(200).json({ ok: false, msg: 'Digite um email válido.' });
 
   const { data: u } = await db.from('usuarios').select('nome,ativo,senha_resetada_em').eq('email', email).single();
   if (!u || !u.ativo)
-    return { statusCode: 200, headers: H, body: JSON.stringify({ ok: true, msg: MSG }) };
+    return res.status(200).json({ ok: true, msg: MSG });
 
   // Evita spam de emails: se já pediu reset há pouco, responde a mesma
   // mensagem de sempre (sem revelar o motivo) e não reenvia.
   if (u.senha_resetada_em) {
     const passados = Date.now() - new Date(u.senha_resetada_em).getTime();
     if (passados < COOLDOWN_MINUTOS * 60 * 1000)
-      return { statusCode: 200, headers: H, body: JSON.stringify({ ok: true, msg: MSG }) };
+      return res.status(200).json({ ok: true, msg: MSG });
   }
 
   const pw   = senha();
@@ -85,5 +93,5 @@ exports.handler = async (event) => {
 </table></td></tr></table></body></html>`,
   });
 
-  return { statusCode: 200, headers: H, body: JSON.stringify({ ok: true, msg: MSG }) };
+  return res.status(200).json({ ok: true, msg: MSG });
 };

@@ -1,3 +1,4 @@
+// api/webhook.js — recebe a notificação de compra da Cakto
 const { createClient } = require('@supabase/supabase-js');
 const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
@@ -6,7 +7,7 @@ const crypto           = require('crypto');
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const SITE    = process.env.URL            || 'https://descomplicaenem.site';
+const SITE    = process.env.SITE_URL       || 'https://descomplicaenem.site';
 const FROM    = process.env.EMAIL_FROM     || 'Descomplica ENEM <noreply@descomplicaenem.site>';
 const SUPORTE = process.env.EMAIL_SUPORTE  || 'suporte@descomplicaenem.site';
 
@@ -65,37 +66,36 @@ function emailHtml(nome, email, pw) {
 </table></td></tr></table></body></html>`;
 }
 
-exports.handler = async (event) => {
-  const method = event.httpMethod;
+module.exports = async (req, res) => {
+  const method = req.method;
 
-  if (method === 'GET')     return { statusCode: 200, body: JSON.stringify({ ok: true, status: 'webhook ativo' }) };
-  if (method === 'OPTIONS') return { statusCode: 200, body: '' };
-  if (method !== 'POST')    return { statusCode: 405, body: 'Method Not Allowed' };
+  if (method === 'GET')     return res.status(200).json({ ok: true, status: 'webhook ativo' });
+  if (method === 'OPTIONS') return res.status(200).end();
+  if (method !== 'POST')    return res.status(405).send('Method Not Allowed');
 
-  const raw = event.body || '';
-  let p;
-  try { p = JSON.parse(raw); }
-  catch { return { statusCode: 400, body: 'Invalid JSON' }; }
+  let p = req.body;
+  if (typeof p === 'string') { try { p = JSON.parse(p || '{}'); } catch { return res.status(400).send('Invalid JSON'); } }
+  p = p || {};
 
   // ── Verificação de autenticidade do webhook ──────────────────────
   // Sem isso, qualquer pessoa que descobrisse esta URL poderia forjar
   // uma "compra aprovada" para qualquer email e ganhar acesso grátis.
   // O secret é conferido em 3 lugares possíveis (o que for mais fácil
   // de configurar no painel da Cakto): query string, header ou corpo.
-  //   Ex.: https://SEU-SITE.netlify.app/webhook/cakto?secret=SEU_SECRET
+  //   Ex.: https://SEU-SITE.vercel.app/api/webhook?secret=SEU_SECRET
   const secretEsperado = process.env.CAKTO_SECRET;
   if (!secretEsperado) {
     console.error('CAKTO_SECRET não configurado nas variáveis de ambiente — recusando webhook por segurança.');
-    return { statusCode: 500, body: 'Webhook not configured: CAKTO_SECRET ausente.' };
+    return res.status(500).send('Webhook not configured: CAKTO_SECRET ausente.');
   }
   const secretRecebido =
-    (event.queryStringParameters && event.queryStringParameters.secret) ||
-    event.headers['x-webhook-secret'] ||
-    event.headers['x-cakto-secret'] ||
+    (req.query && req.query.secret) ||
+    req.headers['x-webhook-secret'] ||
+    req.headers['x-cakto-secret'] ||
     p.secret || p.token || '';
   if (!secretConfere(secretRecebido, secretEsperado)) {
     console.error('Webhook rejeitado: secret inválido ou ausente.');
-    return { statusCode: 401, body: 'Unauthorized' };
+    return res.status(401).send('Unauthorized');
   }
 
   console.log('Evento:', p.event, '| Status:', p.data?.[0]?.status);
@@ -110,7 +110,7 @@ exports.handler = async (event) => {
 
   if (!aprovado) {
     console.log(`Ignorado: ev="${ev}" st="${st}"`);
-    return { statusCode: 200, body: JSON.stringify({ ok: true, msg: 'ignorado', ev, st }) };
+    return res.status(200).json({ ok: true, msg: 'ignorado', ev, st });
   }
 
   // Extrai dados — Cakto envia data como array
@@ -124,7 +124,7 @@ exports.handler = async (event) => {
 
   if (!email || !email.includes('@')) {
     console.error('Email não encontrado');
-    return { statusCode: 400, body: 'Email não encontrado' };
+    return res.status(400).send('Email não encontrado');
   }
 
   // Gera senha
@@ -155,9 +155,9 @@ exports.handler = async (event) => {
 
   if (mailErr) {
     console.error('Email erro:', mailErr);
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: mailErr.message }) };
+    return res.status(500).json({ ok: false, error: mailErr.message });
   }
 
   console.log(`✓ Email enviado para ${email}`);
-  return { statusCode: 200, body: JSON.stringify({ ok: true, email }) };
+  return res.status(200).json({ ok: true, email });
 };

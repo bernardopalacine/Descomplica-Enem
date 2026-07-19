@@ -14,7 +14,15 @@ const ADJ = ['azul','verde','rapido','forte','firme','claro','novo','bom','alto'
 const SUB = ['gato','rio','sol','mar','vento','fogo','pico','base','foco','meta'];
 function gerarSenha() {
   const r = a => a[crypto.randomInt(a.length)];
-  return `${r(ADJ)}-${r(SUB)}-${crypto.randomInt(10,99)}`;
+  return `${r(ADJ)}-${r(SUB)}-${crypto.randomInt(1000,9999)}`;
+}
+
+// Comparação em tempo constante para evitar timing attack no secret do webhook
+function secretConfere(recebido, esperado) {
+  const a = Buffer.from(String(recebido || ''));
+  const b = Buffer.from(String(esperado || ''));
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 function emailHtml(nome, email, pw) {
@@ -52,7 +60,7 @@ function emailHtml(nome, email, pw) {
   <p style="font-size:13px;color:#9ca3af;margin:0;line-height:1.65">Dúvidas? Escreva para <a href="mailto:${SUPORTE}" style="color:#e02d3c;text-decoration:none">${SUPORTE}</a></p>
 </td></tr>
 <tr><td style="background:#f8f8fc;padding:20px 48px;border-top:1px solid #e8e8f0">
-  <p style="font-size:12px;color:#9ca3af;margin:0;text-align:center">© 2025 Descomplica ENEM · Todos os direitos reservados</p>
+  <p style="font-size:12px;color:#9ca3af;margin:0;text-align:center">© 2026 Descomplica ENEM · Todos os direitos reservados</p>
 </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -68,6 +76,27 @@ exports.handler = async (event) => {
   let p;
   try { p = JSON.parse(raw); }
   catch { return { statusCode: 400, body: 'Invalid JSON' }; }
+
+  // ── Verificação de autenticidade do webhook ──────────────────────
+  // Sem isso, qualquer pessoa que descobrisse esta URL poderia forjar
+  // uma "compra aprovada" para qualquer email e ganhar acesso grátis.
+  // O secret é conferido em 3 lugares possíveis (o que for mais fácil
+  // de configurar no painel da Cakto): query string, header ou corpo.
+  //   Ex.: https://SEU-SITE.netlify.app/webhook/cakto?secret=SEU_SECRET
+  const secretEsperado = process.env.CAKTO_SECRET;
+  if (!secretEsperado) {
+    console.error('CAKTO_SECRET não configurado nas variáveis de ambiente — recusando webhook por segurança.');
+    return { statusCode: 500, body: 'Webhook not configured: CAKTO_SECRET ausente.' };
+  }
+  const secretRecebido =
+    (event.queryStringParameters && event.queryStringParameters.secret) ||
+    event.headers['x-webhook-secret'] ||
+    event.headers['x-cakto-secret'] ||
+    p.secret || p.token || '';
+  if (!secretConfere(secretRecebido, secretEsperado)) {
+    console.error('Webhook rejeitado: secret inválido ou ausente.');
+    return { statusCode: 401, body: 'Unauthorized' };
+  }
 
   console.log('Evento:', p.event, '| Status:', p.data?.[0]?.status);
 
@@ -132,4 +161,3 @@ exports.handler = async (event) => {
   console.log(`✓ Email enviado para ${email}`);
   return { statusCode: 200, body: JSON.stringify({ ok: true, email }) };
 };
-

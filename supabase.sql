@@ -9,8 +9,19 @@ create table if not exists usuarios (
   criado_em       timestamptz default now(),
   ultimo_acesso   timestamptz,
   senha_resetada_em timestamptz,
-  compra          jsonb
+  compra          jsonb,
+  tentativas_login int not null default 0,
+  bloqueado_ate   timestamptz
 );
+
+-- ─────────────────────────────────────────────────────────────
+-- MIGRAÇÃO (só necessária se a tabela "usuarios" já existia antes
+-- de tentativas_login/bloqueado_ate serem adicionadas). Rode este
+-- bloco no SQL Editor do Supabase para ativar o bloqueio por
+-- tentativas de login incorretas em login.js:
+-- ─────────────────────────────────────────────────────────────
+alter table usuarios add column if not exists tentativas_login int not null default 0;
+alter table usuarios add column if not exists bloqueado_ate timestamptz;
 
 -- Índice no email para login rápido
 create index if not exists idx_usuarios_email on usuarios(email);

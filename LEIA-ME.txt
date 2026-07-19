@@ -1,0 +1,92 @@
+════════════════════════════════════════════
+  DESCOMPLICA ENEM — SISTEMA AUTOMATIZADO
+════════════════════════════════════════════
+
+FLUXO COMPLETO:
+  Aluno compra na Cakto
+       ↓
+  Cakto dispara webhook
+       ↓
+  Netlify cria login (email + senha)
+       ↓
+  Resend envia email bonito com as credenciais
+       ↓
+  Aluno entra com email + senha em acesso.html
+       ↓
+  Aulas e Arena desbloqueadas
+
+────────────────────────────────────────────
+PASSO 1 — SUPABASE (banco de dados gratuito)
+────────────────────────────────────────────
+1. Acesse: supabase.com → crie conta e projeto
+2. Vá em SQL Editor → cole o conteúdo de supabase.sql → Execute
+   (se a tabela "usuarios" já existia de antes, esse mesmo arquivo
+   também adiciona as colunas novas de bloqueio por tentativas —
+   pode rodar de novo sem problema, ele ignora o que já existe)
+3. Vá em Settings > API:
+   - Copie "Project URL"          → SUPABASE_URL
+   - Copie "service_role" key     → SUPABASE_SERVICE_KEY
+   (NUNCA use a anon key nas functions)
+
+────────────────────────────────────────────
+PASSO 2 — RESEND (email gratuito, 3000/mês)
+────────────────────────────────────────────
+1. Acesse: resend.com → crie conta gratuita
+2. Adicione e verifique seu domínio (ou use @resend.dev para testes)
+3. Vá em API Keys → Create API Key → copie → RESEND_API_KEY
+4. Em EMAIL_FROM use: Descomplica ENEM <noreply@seudominio.com>
+
+────────────────────────────────────────────
+PASSO 3 — NETLIFY (hospedagem gratuita)
+────────────────────────────────────────────
+1. Acesse: netlify.com → Add new site → Deploy manually
+2. Arraste a pasta "descomplica-sistema" inteira
+3. Vá em Site settings > Environment variables → adicione:
+
+   SUPABASE_URL          = https://xxxx.supabase.co
+   SUPABASE_SERVICE_KEY  = eyJ... (service_role)
+   RESEND_API_KEY        = re_...
+   EMAIL_FROM            = Descomplica ENEM <noreply@seudominio.com>
+   EMAIL_SUPORTE         = seu@email.com
+   CAKTO_SECRET          = (veja passo 4 — IMPORTANTE, sem isso o webhook
+                             fica desligado por segurança)
+
+4. Anote a URL do seu site: https://SEU-SITE.netlify.app
+
+────────────────────────────────────────────
+PASSO 4 — CAKTO (webhook automático)
+────────────────────────────────────────────
+Sem um secret, qualquer pessoa que descobrisse a URL do webhook
+poderia forjar uma "compra aprovada" para qualquer email e ganhar
+acesso de graça. Por isso o webhook.js EXIGE um secret — sem ele,
+ele recusa a requisição (erro 500) em vez de aceitar tudo.
+
+1. Invente um secret forte (ex.: gere uma senha aleatória longa em
+   um gerenciador de senhas — não precisa ser o que a Cakto sugerir).
+2. Cole esse secret em NETLIFY > Environment variables > CAKTO_SECRET
+3. Painel Cakto → Integrações → Webhooks → Adicionar webhook:
+   URL:    https://SEU-SITE.netlify.app/webhook/cakto?secret=SEU_SECRET_AQUI
+   Evento: Compra Aprovada
+   (troque SEU_SECRET_AQUI pelo mesmo valor que você colocou em
+   CAKTO_SECRET — é essa URL exata, com o "?secret=...", que garante
+   que só a Cakto consegue liberar acesso)
+4. Faça um re-deploy no Netlify para atualizar as variáveis
+
+────────────────────────────────────────────
+PRONTO! Zero trabalho manual a partir daqui.
+────────────────────────────────────────────
+
+ARQUIVOS DO PROJETO:
+  public/
+    index.html            → landing page
+    acesso.html           → login email + senha
+    aulas-completas.html  → aulas (bloqueada sem login)
+    arena-enem.html       → Arena ENEM (bloqueada sem login)
+    *.pdf                 → ebook
+  netlify/functions/
+    webhook.js            → recebe Cakto, cria usuário, envia email
+    login.js              → valida email + senha
+    recuperar.js          → gera nova senha e envia por email
+  netlify.toml            → configuração do Netlify
+  package.json            → dependências
+  supabase.sql            → SQL para criar a tabela

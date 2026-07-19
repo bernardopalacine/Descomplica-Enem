@@ -21,6 +21,16 @@
   to     = "/.netlify/functions/recuperar"
   status = 200
 
+[[redirects]]
+  from   = "/api/verificar-sessao"
+  to     = "/.netlify/functions/verificar-sessao"
+  status = 200
+
+[[redirects]]
+  from   = "/api/logout"
+  to     = "/.netlify/functions/logout"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

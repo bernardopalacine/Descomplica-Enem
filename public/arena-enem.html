@@ -825,16 +825,17 @@ No Brasil, a principal cultura agrícola explorada em larga escala para a produ�
 </div>
 
 <script>
-(function(){
-  // Checa se já tem sessão salva
-  function getSessao(){
-    try{ return JSON.parse(localStorage.getItem('de_sess')||'null'); }catch(e){ return null; }
-  }
-  function setSessao(d){
-    try{ localStorage.setItem('de_sess', JSON.stringify(d)); }catch(e){}
+(async function(){
+  // A sessão é um cookie HttpOnly assinado pelo servidor — perguntamos
+  // pra ele em vez de confiar em algo que o próprio navegador guardou.
+  async function checarSessao(){
+    try{
+      var r = await fetch('/api/verificar-sessao', { credentials:'same-origin' });
+      return await r.json();
+    }catch(e){ return { ok:false }; }
   }
 
-  var s = getSessao();
+  var s = await checarSessao();
   if(s && s.ok === true){
     // Já logado — remove o gate
     var g = document.getElementById('de-gate');
@@ -878,13 +879,14 @@ No Brasil, a principal cultura agrícola explorada em larga escala para a produ�
     try{
       var r = await fetch('/api/login',{
         method:'POST',
+        credentials:'same-origin',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({email:email,senha:senha})
       });
       var d = await r.json();
 
       if(d.ok){
-        setSessao({ok:true, nome:d.nome, email:email});
+        // O servidor já mandou o cookie de sessão (Set-Cookie na resposta acima).
         // Remove o gate
         var g=document.getElementById('de-gate');
         if(g){ g.remove(); document.getElementById('de-gate-css').remove(); }

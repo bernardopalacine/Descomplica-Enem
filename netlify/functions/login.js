@@ -1,10 +1,11 @@
 // netlify/functions/login.js
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt           = require('bcryptjs');
+const session          = require('./_lib/session');
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const SITE_ORIGIN = process.env.URL || 'https://descomplicaenem.site';
-const H  = { 'Content-Type':'application/json','Access-Control-Allow-Origin':SITE_ORIGIN,'Access-Control-Allow-Methods':'POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type' };
+const H  = { 'Content-Type':'application/json','Access-Control-Allow-Origin':SITE_ORIGIN,'Access-Control-Allow-Methods':'POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Credentials':'true' };
 
 const MAX_TENTATIVAS   = 6;
 const BLOQUEIO_MINUTOS = 15;
@@ -63,5 +64,11 @@ exports.handler = async (event) => {
   if (temColunasLimite) { sucesso.tentativas_login = 0; sucesso.bloqueado_ate = null; }
   await db.from('usuarios').update(sucesso).eq('email', email);
 
-  return { statusCode: 200, headers: H, body: JSON.stringify({ ok: true, nome: u.nome }) };
+  // Sessão assinada pelo servidor — o navegador não consegue forjar isso.
+  const cookieHeader = session.setCookieHeader({ email, nome: u.nome });
+  return {
+    statusCode: 200,
+    headers: { ...H, 'Set-Cookie': cookieHeader },
+    body: JSON.stringify({ ok: true, nome: u.nome }),
+  };
 };

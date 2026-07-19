@@ -151,33 +151,14 @@ input:focus{border-color:rgba(224,45,60,.55)}
 </div>
 
 <script>
-// Salva e lê sessão via COOKIE (funciona em qualquer navegador/mobile)
-function setSessao(dados) {
-  var val = encodeURIComponent(JSON.stringify(dados));
-  // Cookie válido por 30 dias
-  var exp = new Date(Date.now() + 30*24*60*60*1000).toUTCString();
-  document.cookie = 'de_sess=' + val + '; expires=' + exp + '; path=/; SameSite=Lax';
-  // Também salva no localStorage como backup
-  try { localStorage.setItem('de_sess', JSON.stringify(dados)); } catch(e) {}
-}
-
-function getSessao() {
-  // Tenta cookie primeiro
-  var v = document.cookie.split(';');
-  for (var i = 0; i < v.length; i++) {
-    var p = v[i].trim();
-    if (p.startsWith('de_sess=')) {
-      try { return JSON.parse(decodeURIComponent(p.slice(8))); } catch(e) {}
-    }
-  }
-  // Fallback localStorage
-  try { return JSON.parse(localStorage.getItem('de_sess') || 'null'); } catch(e) {}
-  return null;
-}
-
-function limparSessao() {
-  document.cookie = 'de_sess=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-  try { localStorage.removeItem('de_sess'); } catch(e) {}
+// A sessão agora é um cookie HttpOnly assinado pelo servidor (login.js) —
+// o navegador não consegue mais fabricar um "estou logado" sozinho.
+// Este arquivo só pergunta pro servidor se a sessão é válida.
+async function checarSessao() {
+  try {
+    var r = await fetch('/api/verificar-sessao', { credentials: 'same-origin' });
+    return await r.json();
+  } catch (e) { return { ok: false }; }
 }
 
 // Pega destino do parâmetro ?next=
@@ -191,8 +172,8 @@ function getNext() {
 }
 
 // Sessão ativa → boas-vindas
-(function(){
-  var s = getSessao();
+(async function(){
+  var s = await checarSessao();
   if (s && s.ok) {
     ir('pWelcome');
     document.getElementById('nomeAluno').textContent = s.nome || 'aluno';
@@ -228,13 +209,14 @@ async function logar() {
   try {
     var r = await fetch('/api/login', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email, senha: senha })
     });
     var d = await r.json();
 
     if (d.ok) {
-      setSessao({ ok: true, nome: d.nome, email: email });
+      // O servidor já mandou o cookie de sessão (Set-Cookie na resposta acima).
 
       // Redireciona para destino original se veio de página protegida
       var next = getNext();
@@ -290,8 +272,8 @@ async function recuperar() {
   btn.innerHTML = 'Enviar nova senha';
 }
 
-function sair() {
-  limparSessao();
+async function sair() {
+  try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) {}
   document.getElementById('iEmail').value = '';
   document.getElementById('iSenha').value = '';
   ir('pLogin');

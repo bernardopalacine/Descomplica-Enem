@@ -5,6 +5,7 @@ const bcrypt           = require('bcryptjs');
 const crypto           = require('crypto');
 
 const { siteOrigin } = require('./_lib/env');
+const { ipDoRequest, status: statusLimite, registrarFalha } = require('./_lib/ratelimit');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -40,6 +41,18 @@ module.exports = async (req, res) => {
   const email = (b.email || '').trim().toLowerCase();
   if (!email || !email.includes('@'))
     return res.status(200).json({ ok: false, msg: 'Digite um email válido.' });
+
+  // Bloqueio por IP — o cooldown de 2min abaixo é por EMAIL (evita reenviar
+  // pra quem já pediu), mas sozinho não impede alguém de varrer vários
+  // emails diferentes ou trocar de vítima a cada 2min pra spamar a caixa
+  // de entrada dela com "nova senha". Mesmo módulo usado em login.js.
+  const chaveLimite = `recuperar:${ipDoRequest(req)}`;
+  const limite = await statusLimite(chaveLimite);
+  if (limite.bloqueado) {
+    res.setHeader('Retry-After', String(limite.retryAfterSeg));
+    return res.status(429).json({ ok: false, msg: 'Muitas tentativas. Tente novamente em alguns minutos.' });
+  }
+  await registrarFalha(chaveLimite, limite.tentativas);
 
   const { data: u } = await db.from('usuarios').select('nome,ativo,senha_resetada_em').eq('email', email).single();
   if (!u || !u.ativo)

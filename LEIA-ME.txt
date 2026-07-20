@@ -107,9 +107,11 @@ ARQUIVOS DO PROJETO:
     verificar-sessao.js   → confere se a sessão é válida (chamado pelo site)
     logout.js             → encerra a sessão
     aulas.js              → serve content/aulas-completas.html só se logado
-    arena.js               → serve content/arena-enem.html só se logado
-    ebook.js               → serve o PDF só se logado
-    _lib/session.js        → assina/confere o cookie de sessão
+    arena.js              → serve content/arena-enem.html só se logado
+    ebook.js              → serve o PDF só se logado
+    _lib/session.js       → assina/confere o cookie de sessão
+    _lib/env.js           → limpa o valor de SITE_URL (usado só no corpo
+                             dos emails, não em headers — ver nota abaixo)
   vercel.json             → configuração da Vercel (rotas, headers, e quais
                              arquivos de content/ cada function pode ler)
   package.json            → dependências
@@ -124,6 +126,19 @@ público: api/aulas.js, api/arena.js e api/ebook.js conferem a sessão
 (o mesmo cookie assinado do login) ANTES de mandar qualquer conteúdo
 de volta. Sem sessão válida, a resposta é um redirecionamento pra
 acesso.html — o conteúdo em si nunca chega em quem não está logado.
+
+────────────────────────────────────────────
+SE MUDAR UMA VARIÁVEL DE AMBIENTE E "NÃO FIZER EFEITO"
+────────────────────────────────────────────
+Já aconteceu de editar uma variável (ex.: SITE_URL) na Vercel, clicar
+em "Redeploy" e o site continuar se comportando como se a mudança não
+tivesse acontecido — inclusive dando erro 500 por causa de um valor
+que já tinha sido corrigido no código. A causa foi cache de build da
+própria Vercel reaproveitando um build antigo.
+
+Se isso acontecer de novo: Deployments → ⋯ no deploy mais recente →
+Redeploy → **desmarque "Use existing Build Cache"** antes de confirmar.
+Isso força um build 100% do zero e resolve.
 
 ────────────────────────────────────────────
 MIGRAÇÃO DE HOSPEDAGEM (Netlify → Vercel)

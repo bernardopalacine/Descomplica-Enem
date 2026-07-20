@@ -6,11 +6,13 @@
 // valor assim chegasse a um header HTTP quebraria a function. Esta
 // função mantém só os caracteres ASCII imprimíveis (os únicos válidos
 // numa URL).
+function limparEnv(valor) {
+  return String(valor || '').replace(/[^\x20-\x7e]/g, '').trim();
+}
+
 function siteOrigin(fallback) {
-  const raw = String(process.env.SITE_URL || '')
-    .replace(/[^\x20-\x7e]/g, '')
-    .trim();
+  const raw = limparEnv(process.env.SITE_URL);
   return raw || fallback || 'https://descomplicaenem.site';
 }
 
-module.exports = { siteOrigin };
+module.exports = { siteOrigin, limparEnv };

@@ -4,8 +4,8 @@ const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
 const crypto           = require('crypto');
 
-const { siteOrigin } = require('./_lib/env');
-const { gerarSenha }  = require('./_lib/senha');
+const { siteOrigin, limparEnv } = require('./_lib/env');
+const { gerarSenha }            = require('./_lib/senha');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -79,18 +79,23 @@ module.exports = async (req, res) => {
   // O secret é conferido em 3 lugares possíveis (o que for mais fácil
   // de configurar no painel da Cakto): query string, header ou corpo.
   //   Ex.: https://SEU-SITE.vercel.app/api/webhook?secret=SEU_SECRET
-  const secretEsperado = process.env.CAKTO_SECRET;
+  // limparEnv() tira caractere invisível/espaço colado sem querer no painel
+  // da Vercel — o mesmo problema que já derrubou o SITE_URL uma vez (ver
+  // _lib/env.js). Um "\n" ou espaço a mais aqui faz o comprimento não bater
+  // e o webhook rejeita uma compra de verdade com 401, silenciosamente.
+  const secretEsperado = limparEnv(process.env.CAKTO_SECRET);
   if (!secretEsperado) {
     console.error('CAKTO_SECRET não configurado nas variáveis de ambiente — recusando webhook por segurança.');
     return res.status(500).send('Webhook not configured: CAKTO_SECRET ausente.');
   }
-  const secretRecebido =
+  const secretRecebido = limparEnv(
     (req.query && req.query.secret) ||
     req.headers['x-webhook-secret'] ||
     req.headers['x-cakto-secret'] ||
-    p.secret || p.token || '';
+    p.secret || p.token || ''
+  );
   if (!secretConfere(secretRecebido, secretEsperado)) {
-    console.error('Webhook rejeitado: secret inválido ou ausente.');
+    console.error(`Webhook rejeitado: secret inválido ou ausente (recebido ${secretRecebido.length} caractere(s), esperado ${secretEsperado.length}).`);
     return res.status(401).send('Unauthorized');
   }
 

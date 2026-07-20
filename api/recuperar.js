@@ -2,10 +2,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
-const crypto           = require('crypto');
 
 const { siteOrigin } = require('./_lib/env');
 const { ipDoRequest, status: statusLimite, registrarFalha } = require('./_lib/ratelimit');
+const { gerarSenha } = require('./_lib/senha');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -15,13 +15,6 @@ const FROM    = process.env.EMAIL_FROM    || 'Descomplica ENEM <noreply@resend.d
 const SUPORTE = process.env.EMAIL_SUPORTE || 'suporte@descomplicaenem.site';
 const MSG = 'Se esse email tem uma compra registrada, você receberá a nova senha em instantes. Verifique também o spam.';
 const COOLDOWN_MINUTOS = 2;
-
-const ADJ = ['azul','verde','rapido','forte','firme','claro','novo','bom','alto','belo'];
-const SUB = ['gato','rio','sol','mar','vento','fogo','pico','base','foco','meta'];
-function senha() {
-  const r = a => a[crypto.randomInt(a.length)];
-  return `${r(ADJ)}-${r(SUB)}-${crypto.randomInt(1000,9999)}`;
-}
 
 // Sem Access-Control-Allow-Origin de propósito — ver login.js.
 function cors(res) {
@@ -66,7 +59,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, msg: MSG });
   }
 
-  const pw   = senha();
+  const pw   = gerarSenha();
   const hash = await bcrypt.hash(pw, 10);
 
   // Manda o email ANTES de salvar a senha nova no banco. Se o envio falhar,

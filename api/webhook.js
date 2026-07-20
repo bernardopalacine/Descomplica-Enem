@@ -5,6 +5,7 @@ const bcrypt           = require('bcryptjs');
 const crypto           = require('crypto');
 
 const { siteOrigin } = require('./_lib/env');
+const { gerarSenha }  = require('./_lib/senha');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -12,13 +13,6 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE    = siteOrigin();
 const FROM    = process.env.EMAIL_FROM     || 'Descomplica ENEM <noreply@descomplicaenem.site>';
 const SUPORTE = process.env.EMAIL_SUPORTE  || 'suporte@descomplicaenem.site';
-
-const ADJ = ['azul','verde','rapido','forte','firme','claro','novo','bom','alto','belo'];
-const SUB = ['gato','rio','sol','mar','vento','fogo','pico','base','foco','meta'];
-function gerarSenha() {
-  const r = a => a[crypto.randomInt(a.length)];
-  return `${r(ADJ)}-${r(SUB)}-${crypto.randomInt(1000,9999)}`;
-}
 
 // Comparação em tempo constante para evitar timing attack no secret do webhook
 function secretConfere(recebido, esperado) {

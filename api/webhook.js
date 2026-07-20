@@ -103,10 +103,17 @@ module.exports = async (req, res) => {
 
   // Verifica se é compra aprovada
   const ev = (p.event || '').toLowerCase().replace(/[._\-\s]/g, '');
-  const st = (p.data?.[0]?.status || p.status || '').toLowerCase();
+  const st = (p.data?.[0]?.status || p.status || '').toLowerCase().trim();
+
+  // Comparação exata no status, não "contains": um status de pagamento
+  // recusado/pendente do tipo "not_completed" CONTÉM "completed" como
+  // substring, e um .includes() teria aprovado (de graça) uma compra que
+  // não foi paga. A checagem por nome do evento abaixo já era exata e
+  // continua igual — serve de rede de segurança independente desta.
+  const STATUS_APROVADOS = ['paid', 'approved', 'complete', 'completed'];
 
   const aprovado =
-    ['paid','approved','complete','completed'].some(s => st.includes(s)) ||
+    STATUS_APROVADOS.includes(st) ||
     ['purchaseapproved','purchase_approved'].includes(ev);
 
   if (!aprovado) {

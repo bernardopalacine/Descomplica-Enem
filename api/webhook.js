@@ -8,11 +8,15 @@ const { siteOrigin, limparEnv } = require('./_lib/env');
 const { gerarSenha }            = require('./_lib/senha');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(limparEnv(process.env.RESEND_API_KEY));
 
 const SITE    = siteOrigin();
-const FROM    = process.env.EMAIL_FROM     || 'Descomplica ENEM <noreply@descomplicaenem.site>';
-const SUPORTE = process.env.EMAIL_SUPORTE  || 'suporte@descomplicaenem.site';
+// limparEnv() tira caractere invisível/espaço colado sem querer no painel
+// da Vercel — já foi a causa real de dois bugs neste projeto (SITE_URL,
+// CAKTO_SECRET). Um "From" com lixo invisível pode fazer o Resend não
+// reconhecer o domínio como o mesmo que foi verificado.
+const FROM    = limparEnv(process.env.EMAIL_FROM)    || 'Descomplica ENEM <noreply@descomplicaenem.site>';
+const SUPORTE = limparEnv(process.env.EMAIL_SUPORTE) || 'suporte@descomplicaenem.site';
 
 // Comparação em tempo constante para evitar timing attack no secret do webhook
 function secretConfere(recebido, esperado) {

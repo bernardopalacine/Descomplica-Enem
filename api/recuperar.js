@@ -3,16 +3,20 @@ const { createClient } = require('@supabase/supabase-js');
 const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
 
-const { siteOrigin } = require('./_lib/env');
+const { siteOrigin, limparEnv } = require('./_lib/env');
 const { ipDoRequest, status: statusLimite, registrarFalha } = require('./_lib/ratelimit');
 const { gerarSenha } = require('./_lib/senha');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(limparEnv(process.env.RESEND_API_KEY));
 
 const SITE    = siteOrigin();
-const FROM    = process.env.EMAIL_FROM    || 'Descomplica ENEM <noreply@resend.dev>';
-const SUPORTE = process.env.EMAIL_SUPORTE || 'suporte@descomplicaenem.site';
+// limparEnv() tira caractere invisível/espaço colado sem querer no painel
+// da Vercel — já foi a causa real de dois bugs neste projeto (SITE_URL,
+// CAKTO_SECRET). Um "From" com lixo invisível pode fazer o Resend não
+// reconhecer o domínio como o mesmo que foi verificado.
+const FROM    = limparEnv(process.env.EMAIL_FROM)    || 'Descomplica ENEM <noreply@resend.dev>';
+const SUPORTE = limparEnv(process.env.EMAIL_SUPORTE) || 'suporte@descomplicaenem.site';
 const MSG = 'Se esse email tem uma compra registrada, você receberá a nova senha em instantes. Verifique também o spam.';
 const COOLDOWN_MINUTOS = 2;
 

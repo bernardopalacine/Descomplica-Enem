@@ -2,16 +2,20 @@
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt           = require('bcryptjs');
 const session          = require('./_lib/session');
-const { siteOrigin, setCorsHeaderSafe } = require('./_lib/env');
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const SITE_ORIGIN = siteOrigin();
 
 const MAX_TENTATIVAS   = 6;
 const BLOQUEIO_MINUTOS = 15;
 
+// Sem Access-Control-Allow-Origin de propósito: o site só chama esta API
+// a partir de si mesmo (mesma origem), que não passa por checagem de CORS
+// de jeito nenhum — o header só seria necessário pra permitir OUTRO site
+// chamar essa API pelo navegador de alguém, o que nunca foi o caso aqui.
+// Um valor mal colado nessa variável já derrubou o login em produção uma
+// vez; a forma mais simples e definitiva de eliminar essa classe de
+// problema é não depender dela pra nada essencial.
 function cors(res) {
-  setCorsHeaderSafe(res, 'Access-Control-Allow-Origin', SITE_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');

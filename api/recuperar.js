@@ -4,7 +4,7 @@ const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
 const crypto           = require('crypto');
 
-const { siteOrigin, setCorsHeaderSafe } = require('./_lib/env');
+const { siteOrigin } = require('./_lib/env');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -12,7 +12,6 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE    = siteOrigin();
 const FROM    = process.env.EMAIL_FROM    || 'Descomplica ENEM <noreply@resend.dev>';
 const SUPORTE = process.env.EMAIL_SUPORTE || 'suporte@descomplicaenem.site';
-const SITE_ORIGIN = SITE;
 const MSG = 'Se esse email tem uma compra registrada, você receberá a nova senha em instantes. Verifique também o spam.';
 const COOLDOWN_MINUTOS = 2;
 
@@ -23,8 +22,8 @@ function senha() {
   return `${r(ADJ)}-${r(SUB)}-${crypto.randomInt(1000,9999)}`;
 }
 
+// Sem Access-Control-Allow-Origin de propósito — ver login.js.
 function cors(res) {
-  setCorsHeaderSafe(res, 'Access-Control-Allow-Origin', SITE_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');

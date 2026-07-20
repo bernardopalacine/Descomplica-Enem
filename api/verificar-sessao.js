@@ -3,8 +3,9 @@
 // Chamado via fetch pelo cliente para decidir se mostra a área logada —
 // diferente do cookie antigo, este não pode ser forjado no console do navegador.
 const session = require('./_lib/session');
+const { siteOrigin } = require('./_lib/env');
 
-const SITE_ORIGIN = process.env.SITE_URL || 'https://descomplicaenem.site';
+const SITE_ORIGIN = siteOrigin();
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', SITE_ORIGIN);

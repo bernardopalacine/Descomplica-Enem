@@ -2,9 +2,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt           = require('bcryptjs');
 const session          = require('./_lib/session');
+const { siteOrigin }   = require('./_lib/env');
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const SITE_ORIGIN = process.env.SITE_URL || 'https://descomplicaenem.site';
+const SITE_ORIGIN = siteOrigin();
 
 const MAX_TENTATIVAS   = 6;
 const BLOQUEIO_MINUTOS = 15;

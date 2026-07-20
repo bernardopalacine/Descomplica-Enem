@@ -4,10 +4,12 @@ const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
 const crypto           = require('crypto');
 
+const { siteOrigin } = require('./_lib/env');
+
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const SITE    = process.env.SITE_URL      || 'https://descomplicaenem.site';
+const SITE    = siteOrigin();
 const FROM    = process.env.EMAIL_FROM    || 'Descomplica ENEM <noreply@resend.dev>';
 const SUPORTE = process.env.EMAIL_SUPORTE || 'suporte@descomplicaenem.site';
 const SITE_ORIGIN = SITE;

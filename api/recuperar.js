@@ -4,7 +4,7 @@ const { Resend }       = require('resend');
 const bcrypt           = require('bcryptjs');
 const crypto           = require('crypto');
 
-const { siteOrigin } = require('./_lib/env');
+const { siteOrigin, setCorsHeaderSafe } = require('./_lib/env');
 
 const db     = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -24,7 +24,7 @@ function senha() {
 }
 
 function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', SITE_ORIGIN);
+  setCorsHeaderSafe(res, 'Access-Control-Allow-Origin', SITE_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');

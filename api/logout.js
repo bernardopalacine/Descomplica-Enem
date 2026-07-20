@@ -2,12 +2,12 @@
 // Limpa o cookie de sessão no servidor. Necessário porque o cookie agora é
 // HttpOnly — o JavaScript do cliente não tem mais permissão de apagá-lo sozinho.
 const session = require('./_lib/session');
-const { siteOrigin } = require('./_lib/env');
+const { siteOrigin, setCorsHeaderSafe } = require('./_lib/env');
 
 const SITE_ORIGIN = siteOrigin();
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', SITE_ORIGIN);
+  setCorsHeaderSafe(res, 'Access-Control-Allow-Origin', SITE_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 

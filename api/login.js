@@ -2,7 +2,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt           = require('bcryptjs');
 const session          = require('./_lib/session');
-const { siteOrigin }   = require('./_lib/env');
+const { siteOrigin, setCorsHeaderSafe } = require('./_lib/env');
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const SITE_ORIGIN = siteOrigin();
@@ -11,7 +11,7 @@ const MAX_TENTATIVAS   = 6;
 const BLOQUEIO_MINUTOS = 15;
 
 function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', SITE_ORIGIN);
+  setCorsHeaderSafe(res, 'Access-Control-Allow-Origin', SITE_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');

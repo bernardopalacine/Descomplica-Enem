@@ -7,7 +7,6 @@ const session = require('./_lib/session');
 module.exports = async (req, res) => {
   // Sem Access-Control-Allow-Origin de propósito — ver login.js.
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') return res.status(200).end();

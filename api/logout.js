@@ -6,7 +6,6 @@ const session = require('./_lib/session');
 module.exports = async (req, res) => {
   // Sem Access-Control-Allow-Origin de propósito — ver login.js.
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')    return res.status(405).json({});

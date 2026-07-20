@@ -33,3 +33,22 @@ alter table usuarios enable row level security;
 create policy "service only" on usuarios
   using (false)
   with check (false);
+
+-- ─────────────────────────────────────────────────────────────
+-- RATE LIMIT DE LOGIN POR IP (api/_lib/ratelimit.js)
+-- Necessária para o bloqueio cobrir também tentativas com email que não
+-- existe — o bloqueio por tentativas em "usuarios" (tentativas_login/
+-- bloqueado_ate) só conta senha errada numa conta que já existe.
+-- ─────────────────────────────────────────────────────────────
+create table if not exists login_rate_limit (
+  chave         text primary key,
+  tentativas    int not null default 0,
+  bloqueado_ate timestamptz,
+  atualizado_em timestamptz default now()
+);
+
+alter table login_rate_limit enable row level security;
+
+create policy "service only" on login_rate_limit
+  using (false)
+  with check (false);

@@ -166,17 +166,26 @@ async function checarSessao() {
 // poderia montar um link tipo acesso.html?next=https://site-falso.com
 // e, depois do login de verdade, a pessoa seria mandada pra fora do
 // site (golpe clássico de "open redirect" usado em phishing).
+//
+// Versão anterior comparava a STRING crua com uma regex (bloqueando
+// "//evil.com" e "/\evil.com"). Isso não bastava: um caractere de
+// tabulação entre as barras (ex. "/\t/evil.com") passava na regex, mas o
+// navegador remove tabs/quebras de linha ao resolver a URL (spec WHATWG
+// URL) e reconstrói "//evil.com" de qualquer forma — ou seja, a checagem
+// e o comportamento real do navegador podiam discordar. Agora deixamos o
+// próprio parser de URL do navegador resolver primeiro e comparamos o
+// ORIGIN resultante: não tem como o resultado divergir do que o
+// navegador vai de fato usar no redirecionamento, porque é a mesma
+// resolução.
 function getNext() {
   try {
     var p = new URLSearchParams(location.search);
     var n = p.get('next');
     if (!n) return null;
     n = decodeURIComponent(n);
-    // Bloqueia "//evil.com" (URL sem esquema) e "/\evil.com" (navegadores
-    // tratam "\" como "/" na hora de resolver a URL, então isso também
-    // vira um redirecionamento pra fora do site se não for barrado aqui).
-    if (!/^\/(?![\/\\])/.test(n)) return null;
-    return n;
+    var resolvido = new URL(n, location.origin);
+    if (resolvido.origin !== location.origin) return null;
+    return resolvido.pathname + resolvido.search + resolvido.hash;
   } catch(e) {}
   return null;
 }

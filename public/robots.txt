@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /aulas-completas.html
+Disallow: /arena-enem.html
+Disallow: /Descomplica_Enem_Guia_Definitivo.pdf
+
+Sitemap: https://www.descomplicaenem.site/sitemap.xml
